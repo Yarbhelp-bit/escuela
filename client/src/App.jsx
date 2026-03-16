@@ -26,7 +26,7 @@ export default function App() {
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/flashcards" element={<Flashcards settings={settings} />} />
+          <Route path="/flashcards" element={<Flashcards settings={settings} setSettings={setSettings} />} />
           <Route path="/lessons" element={<Lessons />} />
           <Route path="/lessons/:id" element={<LessonDetail settings={settings} />} />
           <Route path="/quiz" element={<Quiz settings={settings} />} />
