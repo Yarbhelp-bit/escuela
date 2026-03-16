@@ -1,5 +1,5 @@
-// Download vocabulary images from Unsplash
-// Usage: UNSPLASH_KEY=your_key node scripts/download-images.js
+// Download vocabulary images from Pixabay
+// Usage: PIXABAY_KEY=your_key node scripts/download-images.js
 
 import https from 'https';
 import fs from 'fs';
@@ -9,9 +9,9 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, '..', 'client', 'public', 'images');
 
-const ACCESS_KEY = process.env.UNSPLASH_KEY;
+const ACCESS_KEY = process.env.PIXABAY_KEY;
 if (!ACCESS_KEY) {
-  console.error('Missing UNSPLASH_KEY. Usage: UNSPLASH_KEY=your_key node scripts/download-images.js');
+  console.error('Missing PIXABAY_KEY. Usage: PIXABAY_KEY=your_key node scripts/download-images.js');
   process.exit(1);
 }
 
@@ -229,17 +229,18 @@ function download(url, dest) {
   });
 }
 
-async function fetchUnsplash(query) {
-  const url = `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=squarish&client_id=${ACCESS_KEY}`;
+async function fetchPixabay(query) {
+  const url = `https://pixabay.com/api/?key=${ACCESS_KEY}&q=${encodeURIComponent(query)}&image_type=photo&per_page=3&safesearch=true&orientation=horizontal`;
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'Accept-Version': 'v1' } }, (res) => {
+    https.get(url, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          if (json.errors) reject(new Error(json.errors[0]));
-          else resolve(json.urls?.small);
+          if (json.error) reject(new Error(json.error));
+          else if (!json.hits?.length) reject(new Error('No photos found'));
+          else resolve(json.hits[0].webformatURL);
         } catch (e) { reject(e); }
       });
     }).on('error', reject);
@@ -252,7 +253,8 @@ async function sleep(ms) {
 
 async function main() {
   const words = Object.keys(imageMap);
-  console.log(`Downloading ${words.length} images to ${OUT_DIR}\n`);
+  console.log(`Downloading ${words.length} images to ${OUT_DIR}`);
+  console.log('Free tier: 100 req/min — running at 700ms intervals, skipping already downloaded.\n');
 
   let success = 0, skip = 0, fail = 0;
 
@@ -261,21 +263,36 @@ async function main() {
     const dest = path.join(OUT_DIR, `${slug}.jpg`);
 
     if (fs.existsSync(dest)) {
-      console.log(`  skip  ${word}`);
+      process.stdout.write(`  skip  ${word}\n`);
       skip++;
       continue;
     }
 
-    try {
-      const imageUrl = await fetchUnsplash(imageMap[word]);
-      await download(imageUrl, dest);
-      console.log(`  ✓     ${word}  (${imageMap[word]})`);
-      success++;
-      // Unsplash free tier: 50 req/hour — stay safe at ~40/min
-      await sleep(1500);
-    } catch (err) {
-      console.log(`  ✗     ${word}  — ${err.message}`);
-      fail++;
+    let attempts = 0;
+    while (attempts < 5) {
+      try {
+        const imageUrl = await fetchPixabay(imageMap[word]);
+        await download(imageUrl, dest);
+        process.stdout.write(`  ✓  ${word}\n`);
+        success++;
+        await sleep(700); // 700ms ≈ 85 req/min, safely under 100/min limit
+        break;
+      } catch (err) {
+        if (err.message.includes('Too Many Requests') || err.message.includes('rate limit')) {
+          const waitMin = 61 - attempts;
+          process.stdout.write(`  ⏳ rate limit hit — waiting ${waitMin} min...\n`);
+          await sleep(waitMin * 60 * 1000);
+          attempts++;
+        } else if (err.message.includes('No photos')) {
+          process.stdout.write(`  —  ${word}  (no photo found)\n`);
+          fail++;
+          break;
+        } else {
+          process.stdout.write(`  ✗  ${word}  — ${err.message}\n`);
+          fail++;
+          break;
+        }
+      }
     }
   }
 
