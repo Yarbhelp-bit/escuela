@@ -1,13 +1,39 @@
 import { Router } from 'express';
+import enrichments from '../data/enrichments.js';
 const router = Router();
 
-// Get quiz questions (multiple choice with distractors)
+// Get quiz questions (multiple choice with distractors + enrichment data)
 router.get('/multiple-choice', (req, res) => {
-  const { lesson_id, count = 10 } = req.query;
+  const { lesson_id, count = 10, mode } = req.query;
 
-  // Get cards due for review, or random cards from lesson
   let targetCards;
-  if (lesson_id) {
+
+  if (mode === 'image') {
+    // For image mode, get cards that have emojis
+    const emojiWords = Object.entries(enrichments)
+      .filter(([, v]) => v.emoji)
+      .map(([k]) => k);
+
+    let allCards;
+    if (lesson_id) {
+      allCards = req.db.prepare(`
+        SELECT c.*, p.next_review FROM cards c
+        LEFT JOIN progress p ON c.id = p.card_id
+        WHERE c.lesson_id = ?
+        ORDER BY RANDOM()
+      `).all(lesson_id);
+    } else {
+      allCards = req.db.prepare(`
+        SELECT c.*, p.next_review FROM cards c
+        LEFT JOIN progress p ON c.id = p.card_id
+        ORDER BY RANDOM()
+      `).all();
+    }
+
+    targetCards = allCards
+      .filter(c => emojiWords.includes(c.spanish))
+      .slice(0, Number(count));
+  } else if (lesson_id) {
     targetCards = req.db.prepare(`
       SELECT c.*, p.next_review FROM cards c
       LEFT JOIN progress p ON c.id = p.card_id
@@ -25,7 +51,25 @@ router.get('/multiple-choice', (req, res) => {
     `).all(Number(count));
   }
 
-  // Build questions with distractors
+  // If not enough due cards, get random ones
+  if (targetCards.length < Number(count) && !lesson_id && mode !== 'image') {
+    const existing = new Set(targetCards.map(c => c.id));
+    const more = req.db.prepare(`
+      SELECT c.*, p.next_review FROM cards c
+      LEFT JOIN progress p ON c.id = p.card_id
+      ORDER BY RANDOM()
+      LIMIT ?
+    `).all(Number(count) - targetCards.length + 10);
+    for (const card of more) {
+      if (!existing.has(card.id)) {
+        targetCards.push(card);
+        existing.add(card.id);
+        if (targetCards.length >= Number(count)) break;
+      }
+    }
+  }
+
+  // Build questions with distractors and enrichment data
   const questions = targetCards.map(card => {
     // Get 3 random distractors from same lesson (or all cards)
     const distractors = req.db.prepare(`
@@ -51,12 +95,18 @@ router.get('/multiple-choice', (req, res) => {
       ...distractors.map(d => ({ spanish: d.spanish, english: d.english, correct: false })),
     ].sort(() => Math.random() - 0.5);
 
+    const extra = enrichments[card.spanish] || {};
+
     return {
       card_id: card.id,
       question_spanish: card.spanish,
       question_english: card.english,
       gender: card.gender,
       options,
+      emoji: extra.emoji || null,
+      definition_es: extra.definition_es || null,
+      cloze_es: extra.cloze_es || null,
+      cloze_answer: extra.cloze_answer || card.spanish,
     };
   });
 

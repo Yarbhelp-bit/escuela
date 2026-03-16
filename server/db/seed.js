@@ -284,7 +284,7 @@ const insertLesson = db.prepare(
   'INSERT INTO lessons (id, name, description, unlocked) VALUES (?, ?, ?, ?)'
 );
 for (const lesson of lessons) {
-  insertLesson.run(lesson.id, lesson.name, lesson.description, lesson.id === 1 ? 1 : 0);
+  insertLesson.run(lesson.id, lesson.name, lesson.description, 1);
 }
 
 // Insert cards and create initial progress entries

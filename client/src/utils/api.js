@@ -35,9 +35,10 @@ export const api = {
   getLesson: (id) => request(`/lessons/${id}`),
 
   // Quiz
-  getQuizQuestions: (lessonId, count = 10) => {
+  getQuizQuestions: (lessonId, count = 10, mode) => {
     let url = `/quiz/multiple-choice?count=${count}`;
     if (lessonId) url += `&lesson_id=${lessonId}`;
+    if (mode) url += `&mode=${mode}`;
     return request(url);
   },
 

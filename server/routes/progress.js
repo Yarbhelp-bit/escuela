@@ -59,11 +59,6 @@ router.post('/rate', (req, res) => {
     req.db.prepare('UPDATE lessons SET mastery_percent = ? WHERE id = ?')
       .run(Math.round(mastery * 10) / 10, card.lesson_id);
 
-    // Unlock next lesson if mastery >= 80%
-    if (mastery >= 80) {
-      req.db.prepare('UPDATE lessons SET unlocked = 1 WHERE id = ?')
-        .run(card.lesson_id + 1);
-    }
   }
 
   res.json({ card_id, rating, ...updated });

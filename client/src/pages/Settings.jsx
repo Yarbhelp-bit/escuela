@@ -63,6 +63,9 @@ export default function Settings({ settings, setSettings }) {
             { key: 'multiple_choice', label: 'Choice' },
             { key: 'type_answer', label: 'Type' },
             { key: 'listening', label: 'Listen' },
+            { key: 'image', label: 'Image' },
+            { key: 'definition', label: 'Define' },
+            { key: 'cloze', label: 'Cloze' },
           ].map(m => (
             <button
               key={m.key}

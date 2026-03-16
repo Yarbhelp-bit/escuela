@@ -3,6 +3,16 @@ import { api } from '../utils/api';
 
 const ACCENT_CHARS = ['á', 'é', 'í', 'ó', 'ú', 'ñ', '¿', '¡'];
 
+const MODES = [
+  { key: 'flashcard', label: 'Flip' },
+  { key: 'multiple_choice', label: 'Choice' },
+  { key: 'type_answer', label: 'Type' },
+  { key: 'listening', label: 'Listen' },
+  { key: 'image', label: 'Image' },
+  { key: 'definition', label: 'Define' },
+  { key: 'cloze', label: 'Cloze' },
+];
+
 export default function Quiz({ settings }) {
   const [mode, setMode] = useState(settings?.quiz_mode || 'flashcard');
   const [questions, setQuestions] = useState([]);
@@ -17,8 +27,14 @@ export default function Quiz({ settings }) {
   const inputRef = useRef(null);
   const direction = settings?.direction || 'en_to_es';
 
+  const loadQuestions = (quizMode) => {
+    const enrichedModes = ['image', 'definition', 'cloze'];
+    const modeParam = enrichedModes.includes(quizMode) ? quizMode : undefined;
+    api.getQuizQuestions(null, 10, modeParam).then(setQuestions).catch(() => {});
+  };
+
   useEffect(() => {
-    api.getQuizQuestions(null, 10).then(setQuestions).catch(() => {});
+    loadQuestions(mode);
   }, []);
 
   const current = questions[currentIndex];
@@ -63,13 +79,39 @@ export default function Quiz({ settings }) {
     advance(option.correct);
   };
 
-  // Type answer handler
+  // Type answer handler (used by type_answer, image, definition, cloze)
   const handleSubmitTyped = (e) => {
     e.preventDefault();
     if (showResult) return;
     setShowResult(true);
-    const isCorrect = typedAnswer.trim().toLowerCase() === answerText.toLowerCase();
+
+    let correctAnswer;
+    if (mode === 'image' || mode === 'definition') {
+      correctAnswer = current.question_spanish;
+    } else if (mode === 'cloze') {
+      correctAnswer = current.cloze_answer || current.question_spanish;
+    } else {
+      correctAnswer = answerText;
+    }
+
+    const isCorrect = typedAnswer.trim().toLowerCase() === correctAnswer.toLowerCase();
     advance(isCorrect);
+  };
+
+  // Get the correct answer for display in feedback
+  const getCorrectAnswer = () => {
+    if (mode === 'image' || mode === 'definition') {
+      return current.question_spanish;
+    } else if (mode === 'cloze') {
+      return current.cloze_answer || current.question_spanish;
+    }
+    return answerText;
+  };
+
+  // Check if typed answer is correct
+  const isTypedCorrect = () => {
+    const correctAnswer = getCorrectAnswer();
+    return typedAnswer.trim().toLowerCase() === correctAnswer.toLowerCase();
   };
 
   // Listening mode — speak the word
@@ -94,7 +136,8 @@ export default function Quiz({ settings }) {
     inputRef.current?.focus();
   };
 
-  const restart = () => {
+  const restart = (newMode) => {
+    const m = newMode || mode;
     setQuizDone(false);
     setCurrentIndex(0);
     setCorrect(0);
@@ -102,7 +145,12 @@ export default function Quiz({ settings }) {
     setSelected(null);
     setTypedAnswer('');
     setShowResult(false);
-    api.getQuizQuestions(null, 10).then(setQuestions).catch(() => {});
+    loadQuestions(m);
+  };
+
+  const switchMode = (m) => {
+    setMode(m);
+    restart(m);
   };
 
   if (questions.length === 0) {
@@ -141,10 +189,13 @@ export default function Quiz({ settings }) {
             <div className="stat-label">Incorrect</div>
           </div>
         </div>
-        <button className="btn btn-primary" onClick={restart}>Try Again</button>
+        <button className="btn btn-primary" onClick={() => restart()}>Try Again</button>
       </div>
     );
   }
+
+  // Determine if current mode uses type-answer input
+  const isTypeMode = ['type_answer', 'listening', 'image', 'definition', 'cloze'].includes(mode);
 
   return (
     <div className="page animate-in">
@@ -155,19 +206,22 @@ export default function Quiz({ settings }) {
           {mode === 'multiple_choice' && 'Multiple Choice'}
           {mode === 'type_answer' && 'Type the Answer'}
           {mode === 'listening' && 'Listening Mode'}
+          {mode === 'image' && 'Image Mode'}
+          {mode === 'definition' && 'Spanish Definition'}
+          {mode === 'cloze' && 'Sentence Cloze'}
         </div>
       </div>
 
       {/* Mode selector */}
-      <div className="toggle-group" style={{ marginBottom: '20px' }}>
-        {['flashcard', 'multiple_choice', 'type_answer', 'listening'].map(m => (
+      <div className="toggle-group" style={{ marginBottom: '20px', flexWrap: 'wrap', gap: '4px' }}>
+        {MODES.map(m => (
           <button
-            key={m}
-            className={`toggle-option ${mode === m ? 'active' : ''}`}
-            onClick={() => { setMode(m); restart(); }}
+            key={m.key}
+            className={`toggle-option ${mode === m.key ? 'active' : ''}`}
+            onClick={() => switchMode(m.key)}
             style={{ fontSize: '10px', padding: '6px 8px' }}
           >
-            {m === 'flashcard' ? 'Flip' : m === 'multiple_choice' ? 'Choice' : m === 'type_answer' ? 'Type' : 'Listen'}
+            {m.label}
           </button>
         ))}
       </div>
@@ -180,9 +234,9 @@ export default function Quiz({ settings }) {
         <span className="session-counter">{currentIndex + 1}/{questions.length}</span>
       </div>
 
-      {/* Question */}
+      {/* Question card */}
       <div className="card" style={{ textAlign: 'center', padding: '32px 20px', marginBottom: '20px' }}>
-        {mode === 'listening' ? (
+        {mode === 'listening' && (
           <>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
               LISTEN & TYPE WHAT YOU HEAR
@@ -199,7 +253,52 @@ export default function Quiz({ settings }) {
               &#128266;
             </button>
           </>
-        ) : (
+        )}
+
+        {mode === 'image' && (
+          <>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              ¿QUÉ ES ESTO EN ESPAÑOL?
+            </div>
+            <div style={{ fontSize: '72px', marginBottom: '8px' }}>
+              {current?.emoji || '?'}
+            </div>
+            {current?.gender && current.gender !== 'none' && (
+              <span className={`flashcard-gender gender-${current.gender}`} style={{ marginTop: '8px', display: 'inline-block' }}>
+                {current.gender}
+              </span>
+            )}
+          </>
+        )}
+
+        {mode === 'definition' && (
+          <>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              ¿QUÉ PALABRA ES?
+            </div>
+            <div style={{ fontSize: '18px', lineHeight: '1.5', fontStyle: 'italic', color: 'var(--text)' }}>
+              {current?.definition_es || 'Sin definición'}
+            </div>
+            {current?.gender && current.gender !== 'none' && (
+              <span className={`flashcard-gender gender-${current.gender}`} style={{ marginTop: '12px', display: 'inline-block' }}>
+                {current.gender}
+              </span>
+            )}
+          </>
+        )}
+
+        {mode === 'cloze' && (
+          <>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              COMPLETA LA FRASE
+            </div>
+            <div style={{ fontSize: '22px', lineHeight: '1.5' }}>
+              {current?.cloze_es?.replace('___', '______') || 'Sin frase'}
+            </div>
+          </>
+        )}
+
+        {!['listening', 'image', 'definition', 'cloze'].includes(mode) && (
           <>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
               {direction === 'en_to_es' ? 'TRANSLATE TO SPANISH' : 'TRANSLATE TO ENGLISH'}
@@ -235,8 +334,8 @@ export default function Quiz({ settings }) {
         </div>
       )}
 
-      {/* Type answer */}
-      {(mode === 'type_answer' || mode === 'listening') && (
+      {/* Type answer input (shared by type_answer, listening, image, definition, cloze) */}
+      {isTypeMode && (
         <form onSubmit={handleSubmitTyped}>
           <input
             ref={inputRef}
@@ -244,7 +343,13 @@ export default function Quiz({ settings }) {
             type="text"
             value={typedAnswer}
             onChange={(e) => setTypedAnswer(e.target.value)}
-            placeholder={mode === 'listening' ? 'Type what you hear...' : `Type the ${direction === 'en_to_es' ? 'Spanish' : 'English'}...`}
+            placeholder={
+              mode === 'listening' ? 'Type what you hear...' :
+              mode === 'image' ? 'Escribe la palabra...' :
+              mode === 'definition' ? 'Escribe la palabra...' :
+              mode === 'cloze' ? 'Escribe la palabra que falta...' :
+              `Type the ${direction === 'en_to_es' ? 'Spanish' : 'English'}...`
+            }
             disabled={showResult}
             autoFocus
           />
@@ -268,15 +373,14 @@ export default function Quiz({ settings }) {
           {showResult && (
             <div style={{
               marginTop: '12px', padding: '16px', borderRadius: 'var(--radius-sm)',
-              background: typedAnswer.trim().toLowerCase() === answerText.toLowerCase()
-                ? 'var(--green-dim)' : 'var(--red-dim)',
-              border: `1px solid ${typedAnswer.trim().toLowerCase() === answerText.toLowerCase() ? 'var(--green)' : 'var(--red)'}`,
+              background: isTypedCorrect() ? 'var(--green-dim)' : 'var(--red-dim)',
+              border: `1px solid ${isTypedCorrect() ? 'var(--green)' : 'var(--red)'}`,
               textAlign: 'center'
             }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                {typedAnswer.trim().toLowerCase() === answerText.toLowerCase() ? 'CORRECT!' : 'ANSWER:'}
+                {isTypedCorrect() ? 'CORRECT!' : 'ANSWER:'}
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{answerText}</div>
+              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{getCorrectAnswer()}</div>
             </div>
           )}
         </form>

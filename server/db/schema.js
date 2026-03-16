@@ -28,7 +28,7 @@ export function initializeDatabase(db) {
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT,
-      unlocked INTEGER DEFAULT 0,
+      unlocked INTEGER DEFAULT 1,
       mastery_percent REAL DEFAULT 0
     );
 
@@ -40,7 +40,7 @@ export function initializeDatabase(db) {
       cards_studied INTEGER DEFAULT 0,
       correct INTEGER DEFAULT 0,
       incorrect INTEGER DEFAULT 0,
-      mode TEXT CHECK(mode IN ('flashcard', 'multiple_choice', 'type_answer', 'listening'))
+      mode TEXT
     );
 
     -- Daily streak tracking
@@ -80,10 +80,6 @@ export function initializeDatabase(db) {
   insertSetting.run('daily_goal', '20');
   insertSetting.run('reminder_time', '09:00');
 
-  // Unlock first lesson by default
-  const firstLesson = db.prepare('SELECT unlocked FROM lessons WHERE id = 1');
-  const row = firstLesson.get();
-  if (row) {
-    db.prepare('UPDATE lessons SET unlocked = 1 WHERE id = 1').run();
-  }
+  // Unlock all lessons by default
+  db.prepare('UPDATE lessons SET unlocked = 1 WHERE unlocked = 0').run();
 }

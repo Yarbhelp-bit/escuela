@@ -20,18 +20,13 @@ export default function Lessons() {
         {lessons.map((lesson) => (
           <Link
             key={lesson.id}
-            to={lesson.unlocked ? `/lessons/${lesson.id}` : '#'}
+            to={`/lessons/${lesson.id}`}
             style={{ textDecoration: 'none', color: 'inherit' }}
           >
-            <div className={`lesson-card ${!lesson.unlocked ? 'locked' : ''}`}>
+            <div className="lesson-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="lesson-number">
-                  {lesson.unlocked ? `Day ${lesson.id}` : 'Locked'}
-                </span>
-                {!lesson.unlocked && (
-                  <span style={{ fontSize: '16px', opacity: 0.5 }}>&#128274;</span>
-                )}
-                {lesson.unlocked && lesson.mastery_percent >= 80 && (
+                <span className="lesson-number">Day {lesson.id}</span>
+                {lesson.mastery_percent >= 80 && (
                   <span className="badge badge-green">Complete</span>
                 )}
               </div>
@@ -50,7 +45,6 @@ export default function Lessons() {
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
                 {lesson.card_count} words
-                {lesson.mastery_percent < 80 && lesson.unlocked && ' — 80% to unlock next'}
               </div>
             </div>
           </Link>
