@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../utils/api';
 import GrammarTip from '../components/GrammarTip';
 
-export default function Flashcards({ settings }) {
+export default function Flashcards({ settings, setSettings }) {
   const [cards, setCards] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -15,6 +15,17 @@ export default function Flashcards({ settings }) {
   const [sessionStart] = useState(Date.now());
 
   const direction = settings?.direction || 'en_to_es';
+
+  const handleReverseDirection = async () => {
+    const newDirection = direction === 'en_to_es' ? 'es_to_en' : 'en_to_es';
+    setSettings(prev => ({ ...prev, direction: newDirection }));
+    setFlipped(false);
+    try {
+      await api.updateSetting('direction', newDirection);
+    } catch (err) {
+      console.error('Failed to save direction:', err);
+    }
+  };
 
   const loadCards = useCallback(async () => {
     setLoading(true);
@@ -121,8 +132,26 @@ export default function Flashcards({ settings }) {
     <div className="page animate-in">
       <div className="page-header">
         <h1 className="page-title">Flashcards</h1>
-        <div className="page-subtitle">
-          {direction === 'en_to_es' ? 'English → Spanish' : 'Spanish → English'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="page-subtitle">
+            {direction === 'en_to_es' ? 'English → Spanish' : 'Spanish → English'}
+          </div>
+          <button
+            onClick={handleReverseDirection}
+            title="Reverse direction"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              padding: '4px 8px',
+              lineHeight: 1,
+            }}
+          >
+            ⇄
+          </button>
         </div>
       </div>
 
