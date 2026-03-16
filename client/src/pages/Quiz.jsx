@@ -3,6 +3,38 @@ import { api } from '../utils/api';
 
 const ACCENT_CHARS = ['á', 'é', 'í', 'ó', 'ú', 'ñ', '¿', '¡'];
 
+function slugify(word) {
+  return (word || '')
+    .toLowerCase()
+    .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e')
+    .replace(/[íìï]/g, 'i').replace(/[óòö]/g, 'o')
+    .replace(/[úùü]/g, 'u').replace(/ñ/g, 'n')
+    .replace(/[¿¡?!,]/g, '').replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
+function ImageDisplay({ word, emoji }) {
+  const [useEmoji, setUseEmoji] = useState(false);
+  const slug = slugify(word);
+
+  return useEmoji || !slug ? (
+    <div style={{ fontSize: '80px', marginBottom: '8px', lineHeight: 1 }}>
+      {emoji || '?'}
+    </div>
+  ) : (
+    <img
+      src={`/images/${slug}.jpg`}
+      alt=""
+      onError={() => setUseEmoji(true)}
+      style={{
+        width: '200px', height: '200px', objectFit: 'cover',
+        borderRadius: '12px', marginBottom: '8px',
+        border: '2px solid var(--border)'
+      }}
+    />
+  );
+}
+
 const MODES = [
   { key: 'flashcard', label: 'Flip' },
   { key: 'multiple_choice', label: 'Choice' },
@@ -260,9 +292,7 @@ export default function Quiz({ settings }) {
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
               ¿QUÉ ES ESTO EN ESPAÑOL?
             </div>
-            <div style={{ fontSize: '72px', marginBottom: '8px' }}>
-              {current?.emoji || '?'}
-            </div>
+            <ImageDisplay word={current?.question_spanish} emoji={current?.emoji} />
             {current?.gender && current.gender !== 'none' && (
               <span className={`flashcard-gender gender-${current.gender}`} style={{ marginTop: '8px', display: 'inline-block' }}>
                 {current.gender}

@@ -371,7 +371,7 @@ const enrichments = {
     cloze_es: 'El ___ con frijoles es t\u00EDpico.',
   },
   'fruta': {
-    emoji: '\u{1F34E}',
+    emoji: null,
     definition_es: 'Alimento dulce que crece en \u00E1rboles o plantas.',
     cloze_es: 'Como ___ todos los d\u00EDas.',
   },
@@ -929,13 +929,13 @@ const enrichments = {
 
   // Lesson 10: Everyday Expressions
   '\u00BFcu\u00E1nto cuesta?': {
-    emoji: '\u{1F4B0}',
+    emoji: null,
     definition_es: 'Pregunta para saber el precio de algo.',
     cloze_es: 'Quiero comprar este libro. \u00BFCu\u00E1nto ___?',
     cloze_answer: 'cuesta',
   },
   '\u00BFd\u00F3nde est\u00E1?': {
-    emoji: '\u{1F4CD}',
+    emoji: null,
     definition_es: 'Pregunta para saber la ubicaci\u00F3n de algo.',
     cloze_es: 'No encuentro el ba\u00F1o. \u00BFD\u00F3nde ___?',
     cloze_answer: 'est\u00E1',
@@ -947,13 +947,13 @@ const enrichments = {
     cloze_answer: 'est\u00E1s',
   },
   '\u00BFqu\u00E9 hora es?': {
-    emoji: '\u{1F550}',
+    emoji: null,
     definition_es: 'Pregunta para saber la hora actual.',
     cloze_es: 'No tengo reloj. \u00BFQu\u00E9 ___ es?',
     cloze_answer: 'hora',
   },
   'me gusta': {
-    emoji: '\u2764\uFE0F',
+    emoji: null,
     definition_es: 'Expresi\u00F3n de agrado o preferencia.',
     cloze_es: 'Me ___ mucho el chocolate.',
     cloze_answer: 'gusta',
